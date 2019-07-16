@@ -1,10 +1,13 @@
 import React, {Component} from 'react';
-import {Text, View, TouchableOpacity, StyleSheet, Picker} from 'react-native';
+import {Text, View, TouchableOpacity, StyleSheet, Picker, ScrollView} from 'react-native';
 
 // https://facebook.github.io/react-native/docs/picker#onvaluechange
 
+import Loader from './Loader';
+
 class PriceList extends Component {
   state = {
+    loading: true,
     products: [
       {name: "Product A", basePrice: 1000},
       {name: "Product B", basePrice: 100},
@@ -16,9 +19,6 @@ class PriceList extends Component {
     ],
     currency: [
       {code: "INR", name: "INR",  rate: 1},
-      {code: "USD", name: "USD", rate: 0.015},
-      {code: "GBP", name: "GBP", rate: 0.012},
-      {code: "EUR", name: "EUR", rate: 0.013},
     ],
     selectedCurrency: 'INR'
   };
@@ -27,20 +27,38 @@ class PriceList extends Component {
     var selected = this.state.currency.filter(item => item.code == itemValue);
     this.setState({selectedCurrency: itemValue});
     this.state.products.map((item) => {
-      item.price = item.basePrice * selected[0].rate;
+      item.price = (item.basePrice * selected[0].rate).toFixed(2);
     })
     this.setState({products: this.state.products});
     
   }
   componentWillMount() {
+    fetch('https://api.exchangeratesapi.io/latest?base=INR', {method: 'GET'})
+     .then((response) => response.json())
+     .then((responseJson) => {
+        this.state.currency = [];
+        for (const [key, value] of Object.entries(responseJson.rates)) {
+          this.state.currency.push({code: key, name: key,  rate: value});
+        }
+        this.setState({
+           loading: false,
+           currency: this.state.currency
+        })
+     })
+     .catch((error) => {
+        console.error(error);
+     });
+    
     this.selectCurrency(this.state.selectedCurrency)
   }
   
   render() {
     return (
-      <View>      
+      <View>
+        <Loader loading={this.state.loading} />
+        <ScrollView>
         <Picker
-          selectedValue={this.state.selectedCurrency}
+          selectedValue = {this.state.selectedCurrency}
           style = {styles.container}
           onValueChange = {(itemValue, itemIndex) => this.selectCurrency(itemValue)}
             >
@@ -65,6 +83,7 @@ class PriceList extends Component {
                   </TouchableOpacity>
                ))
         } 
+        </ScrollView>
       </View>
     )
   }
@@ -90,5 +109,9 @@ const styles = StyleSheet.create ({
    },
    price: {
       color: '#db1616'
+   },
+   loader: {
+     padding:0,
+     margin:0
    }
 })
